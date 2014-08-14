@@ -1,0 +1,194 @@
+extends layout
+
+block script
+  script.
+    function loadOptions(){
+      $.ajax({ url: '/options/', cache: false })
+        .done(function(data){
+          window.options = data;
+        });
+    };
+
+    function loadOrder(){
+      $.ajax({ url:'/choices/', cache: false })
+        .done(function(data){
+          var table = $(".choices tbody").html('');
+
+          var rowTemplate = $("<tr><td class='name'></td><td class='type'></td><td class='menu'></td><td class='drink'></td><td class='remarks'></td><td><button class='btn btn-danger btn-delete'>Delete</td></tr>")
+          $(data).each(function(i, choice){
+            var row = rowTemplate.clone();
+            row.attr("key", choice._id);
+            row.find(".name").text(choice.name);
+            row.find(".type").text(choice.type);
+            row.find(".menu").text(choice.menu);
+            row.find(".drink").text(choice.drink);
+            row.find(".remarks").text(choice.remarks);
+
+            row.appendTo(table);
+          });
+        })
+        .fail(function(xhr, status, error){
+          console.log('error', status, error)
+        });
+    };
+
+    $(function(){
+      $('.modal').modal();
+      loadOptions();
+      loadOrder();      
+
+      $(".btn-alacarte").click(function(){
+        $("#modal-alacarte").modal('show');  
+      });
+
+      $(".btn-buffet").click(function(){
+        $("#modal-buffet").modal('show');  
+      })
+
+      $(".btn-register").click(function(){
+        $('#modal-register').modal('show');
+      });
+
+      $(".btn-submit").click(function(){
+        $.post('/register', $('#registerform').serialize())
+          .done(function(){
+            // clear current inputs
+            $('#inputName, #radioMenu, #inputMenu, #inputDrink, #inputRemarks').val('');
+            $('#radioMenu:first, #radioDrink:first').attr('checked', 'checked');
+
+            $('#modal-register').modal('hide');
+            loadOrder();
+          });
+      });
+
+      $(".choices").on({
+        click: function(){
+          var me = $(this);
+          var row = me.parent().parent();
+          var name = row.find('.name').text();
+
+          $.post('/delete', { key: row.attr('key') })
+            .done(function(data){
+              loadOrder();
+              
+              var alert = $("<div class='alert alert-warning'></div>").text('Order for ' + name + ' was successfully removed.');
+              $(".alert-container").append(alert);
+
+              setTimeout(function() {
+                alert.fadeOut('slow');
+              }, 3000);
+            })
+        }  
+      }, '.btn-delete');
+
+      $('.radioMenu').change(function(){
+        var menuType = $(':radio[name="radioMenu"]:checked').val();
+        var menuSelect = $('#inputMenu').html('');
+        $.each(options.menu[menuType], function() {
+            menuSelect.append($('<option />').val(this).text(this));
+          });
+      });
+
+      $('.radioDrink').change(function(){
+        var drinkType = $(':radio[name="radioDrink"]:checked').val();
+        var drinkSelect = $('#inputDrink').html('');
+        $.each(options.drink[drinkType], function() {
+            drinkSelect.append($('<option />').val(this).text(this));
+          });
+      });
+    });
+
+block content
+  .container
+    .jumbotron
+      .container
+        h1 Jason's Farwell Lunch 
+        h1 (14 Aug 2014)
+        div
+          div.pull-right
+            button.btn.btn-primary.btn-buffet.btn-menu(type="button") Buffet Menu
+            button.btn.btn-primary.btn-alacarte.btn-menu(type="button") Ala Carte Menu
+            button.btn.btn-primary.btn-register.btn-menu(type="button") Register my order
+
+    .row
+      .col-md-12
+        .alert-container
+        table.table.choices
+          thead
+            tr
+              th Name
+              th Type
+              th Menu
+              th Drink
+              th Remarks
+              th 
+          tbody
+
+  #modal-alacarte.menu.modal.fade(data-show='false')
+    .modal-dialog
+        .modal-content
+          .modal-header
+            button.close(type='button', data-dismiss='modal', aria-hidden='true') ×
+            h4.modal-title Ala Carte Menu
+          .modal-body(style='text-align:center;')
+            img(src='/images/alacarte.png')
+
+  #modal-buffet.menu.modal.fade(data-show='false')
+    .modal-dialog
+        .modal-content
+          .modal-header
+            button.close(type='button', data-dismiss='modal', aria-hidden='true') ×
+            h4.modal-title Buffet Menu
+          .modal-body(style='text-align:center;')
+            img(src='/images/buffet.png')
+
+  #modal-register.modal.fade(data-show='false')
+    .modal-dialog
+        .modal-content
+          .modal-body
+            form#registerform.form-horizontal(role='form', action='/register', method='post')
+              .form-group
+                label.col-lg-2.control-label(for='inputName') Name
+                .col-lg-10
+                  input#inputName.form-control(type='text', name='inputName', placeholder='Name')
+              .form-group
+                label.col-lg-2.control-label(for='radioMenu') Menu Type
+                .col-lg-10
+                  label.radio-inline
+                    input.radioMenu(type='radio', name='radioMenu', value='buffet', selected) 
+                    | Buffet
+                  label.radio-inline
+                    input.radioMenu(type='radio', name='radioMenu', value='alacarte') 
+                    | Ala Carte
+              .form-group
+                label.col-lg-2.control-label(for='inputMenu') Menu
+                .col-lg-10
+                  select#inputMenu.form-control(name='inputMenu')
+                    - for (var x = 0; x < options.menu.buffet.length; x++)
+                        option #{options.menu.buffet[x]}
+              .form-group
+                label.col-lg-2.control-label(for='radioMenu') Drink Type
+                .col-lg-10
+                  label.radio-inline
+                    input.radioDrink(type='radio', name='radioDrink', value='thirst_quencher', selected) 
+                    | Thirst Quencher
+                  label.radio-inline
+                    input.radioDrink(type='radio', name='radioDrink', value='coffee') 
+                    | Coffee
+                  label.radio-inline
+                    input.radioDrink(type='radio', name='radioDrink', value='tea') 
+                    | Tea
+              .form-group
+                label.col-lg-2.control-label(for='inputDrink') Drink
+                .col-lg-10
+                  select#inputDrink.form-control(name='inputDrink')
+                    - for (var x = 0; x < options.drink.thirst_quencher.length; x++)
+                      option #{options.drink.thirst_quencher[x]}
+              .form-group
+                label.col-lg-2.control-label(for='inputRemarks') Remarks
+                .col-lg-10
+                  input#inputRemarks.form-control(type='text', name='inputRemarks', placeholder='Remarks')
+
+          .modal-footer
+            button.btn.btn-default(type='button', data-dismiss='modal') Close
+            button.btn-submit.btn.btn-primary(type='button') Submit
